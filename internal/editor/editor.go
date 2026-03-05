@@ -13,6 +13,20 @@ type EnvPair struct {
 	Value string
 }
 
+// resolveValue evaluates shell substitutions in a value if present.
+// Falls back to the literal value on error.
+func resolveValue(value string) string {
+	if !strings.Contains(value, "$(") && !strings.Contains(value, "`") {
+		return value
+	}
+	// Assign to a variable first to avoid word-splitting, then print without trailing newline
+	out, err := exec.Command("sh", "-c", "__v="+value+"; printf '%s' \"$__v\"").Output()
+	if err != nil {
+		return value // fall back to literal
+	}
+	return string(out)
+}
+
 // ParseLines parses key=value lines, ignoring blank lines and # comments.
 func ParseLines(content string) ([]EnvPair, error) {
 	var pairs []EnvPair
@@ -31,6 +45,7 @@ func ParseLines(content string) ([]EnvPair, error) {
 		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
 			value = value[1 : len(value)-1]
 		}
+		value = resolveValue(value)
 		pairs = append(pairs, EnvPair{Key: key, Value: value})
 	}
 	return pairs, nil

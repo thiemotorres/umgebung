@@ -45,3 +45,44 @@ func TestFormatLines(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 }
+
+func TestParseLineShellSubstitution(t *testing.T) {
+	input := `FOO=$(printf 'hello')`
+	pairs, err := editor.ParseLines(input)
+	if err != nil {
+		t.Fatalf("ParseLines: %v", err)
+	}
+	if len(pairs) != 1 {
+		t.Fatalf("expected 1 pair, got %d", len(pairs))
+	}
+	if pairs[0].Value != "hello" {
+		t.Errorf("expected value %q, got %q", "hello", pairs[0].Value)
+	}
+}
+
+func TestParseLineShellSubstitutionMultiline(t *testing.T) {
+	// printf with \n produces a real newline - store it as-is
+	input := "FOO=$(printf 'line1\\nline2')"
+	pairs, err := editor.ParseLines(input)
+	if err != nil {
+		t.Fatalf("ParseLines: %v", err)
+	}
+	if len(pairs) != 1 {
+		t.Fatalf("expected 1 pair, got %d", len(pairs))
+	}
+	if pairs[0].Value != "line1\nline2" {
+		t.Errorf("expected multiline value, got %q", pairs[0].Value)
+	}
+}
+
+func TestParseLineLiteralValueUnchanged(t *testing.T) {
+	// Plain values without $() must not be altered
+	input := `FOO=plainvalue`
+	pairs, err := editor.ParseLines(input)
+	if err != nil {
+		t.Fatalf("ParseLines: %v", err)
+	}
+	if pairs[0].Value != "plainvalue" {
+		t.Errorf("expected %q, got %q", "plainvalue", pairs[0].Value)
+	}
+}
