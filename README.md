@@ -5,7 +5,7 @@ A command-line tool for managing encrypted environment variable sets. Store secr
 ## Install
 
 ```
-go install github.com/feto/umgebung@latest
+go install github.com/thiemotorres/umgebung@latest
 ```
 
 ## Commands
