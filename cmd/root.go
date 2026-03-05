@@ -31,7 +31,15 @@ func runTUI() error {
 		return err
 	}
 	defer conn.Close()
-	return tui.Run(conn, key)
+
+	activateName, err := tui.Run(conn, key)
+	if err != nil {
+		return err
+	}
+	if activateName != "" {
+		return activateEnvSet(activateName, key, conn)
+	}
+	return nil
 }
 
 func Execute() {

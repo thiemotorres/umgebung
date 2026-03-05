@@ -3,11 +3,15 @@ package tui
 import (
 	"database/sql"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/feto/umgebung/internal/crypto"
 	"github.com/feto/umgebung/internal/db"
+	"github.com/feto/umgebung/internal/editor"
 )
 
 var (
@@ -18,15 +22,18 @@ var (
 )
 
 type Model struct {
-	conn     *sql.DB
-	key      []byte
-	sets     []db.EnvSet
-	cursor   int
-	vars     []db.EnvVar
-	width    int
-	height   int
-	err      error
-	quitting bool
+	conn         *sql.DB
+	key          []byte
+	sets         []db.EnvSet
+	cursor       int
+	vars         []db.EnvVar
+	width        int
+	height       int
+	err          error
+	quitting     bool
+	mode         string // "browse" | "input"
+	inputBuf     string // name being typed in input mode
+	activateName string // set when user presses enter to activate
 }
 
 type setsLoadedMsg struct{ sets []db.EnvSet }
@@ -34,8 +41,17 @@ type varsLoadedMsg struct{ vars []db.EnvVar }
 type errMsg struct{ err error }
 
 func New(conn *sql.DB, key []byte) Model {
-	return Model{conn: conn, key: key}
+	return Model{conn: conn, key: key, mode: "browse"}
 }
+
+// Mode returns the current mode ("browse" or "input").
+func (m Model) Mode() string { return m.mode }
+
+// InputBuf returns the current input buffer.
+func (m Model) InputBuf() string { return m.inputBuf }
+
+// ActivateName returns the name set when the user presses enter to activate.
+func (m Model) ActivateName() string { return m.activateName }
 
 func (m Model) Init() tea.Cmd {
 	return m.loadSets()
@@ -82,7 +98,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg.err
 
+	case error:
+		m.err = msg
+
+	case nil:
+		return m, m.loadSets()
+
 	case tea.KeyMsg:
+		if m.mode == "input" {
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = "browse"
+				m.inputBuf = ""
+			case tea.KeyBackspace:
+				if len(m.inputBuf) > 0 {
+					m.inputBuf = m.inputBuf[:len(m.inputBuf)-1]
+				}
+			case tea.KeyEnter:
+				if m.inputBuf != "" {
+					name := m.inputBuf
+					m.mode = "browse"
+					m.inputBuf = ""
+					return m, m.openEditorForNew(name)
+				}
+			default:
+				if msg.Type == tea.KeyRunes {
+					m.inputBuf += string(msg.Runes)
+				}
+			}
+			return m, nil
+		}
+		// browse mode
 		switch msg.String() {
 		case "q", "ctrl+c":
 			m.quitting = true
@@ -97,18 +143,135 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 				return m, m.loadVars()
 			}
+		case "n":
+			m.mode = "input"
+			m.inputBuf = ""
 		case "d":
 			if len(m.sets) > 0 {
 				name := m.sets[m.cursor].Name
 				db.DeleteEnvSet(m.conn, name)
 				return m, m.loadSets()
 			}
+		case "e":
+			if len(m.sets) > 0 {
+				return m, m.openEditorForEdit()
+			}
+		case "enter":
+			if len(m.sets) > 0 {
+				m.activateName = m.sets[m.cursor].Name
+				return m, tea.Quit
+			}
 		}
 	}
 	return m, nil
 }
 
+func (m Model) openEditorForNew(name string) tea.Cmd {
+	editorBin := os.Getenv("EDITOR")
+	if editorBin == "" {
+		editorBin = "vi"
+	}
+	f, err := os.CreateTemp("", "umgebung-*.env")
+	if err != nil {
+		return func() tea.Msg { return errMsg{err} }
+	}
+	tmpPath := f.Name()
+	f.WriteString("# umgebung - one KEY=VALUE per line\n")
+	f.Close()
+
+	return tea.ExecProcess(exec.Command(editorBin, tmpPath), func(err error) tea.Msg {
+		defer os.Remove(tmpPath)
+		if err != nil {
+			return errMsg{err}
+		}
+		content, err := os.ReadFile(tmpPath)
+		if err != nil {
+			return errMsg{err}
+		}
+		pairs, err := editor.ParseLines(string(content))
+		if err != nil {
+			return errMsg{err}
+		}
+		var vars []db.EnvVar
+		for _, p := range pairs {
+			enc, err := crypto.Encrypt(m.key, []byte(p.Value))
+			if err != nil {
+				return errMsg{err}
+			}
+			vars = append(vars, db.EnvVar{Key: p.Key, Value: enc})
+		}
+		if len(vars) > 0 {
+			if err := db.CreateEnvSet(m.conn, name, vars); err != nil {
+				return errMsg{err}
+			}
+		}
+		return nil // trigger reload via nil case in Update
+	})
+}
+
+func (m Model) openEditorForEdit() tea.Cmd {
+	if len(m.sets) == 0 {
+		return nil
+	}
+	name := m.sets[m.cursor].Name
+	editorBin := os.Getenv("EDITOR")
+	if editorBin == "" {
+		editorBin = "vi"
+	}
+
+	vars, err := db.GetEnvVars(m.conn, name)
+	if err != nil {
+		return func() tea.Msg { return errMsg{err} }
+	}
+
+	var initial []editor.EnvPair
+	for _, v := range vars {
+		plaintext, err := crypto.Decrypt(m.key, v.Value)
+		if err != nil {
+			return func() tea.Msg { return errMsg{err} }
+		}
+		initial = append(initial, editor.EnvPair{Key: v.Key, Value: string(plaintext)})
+	}
+
+	f, err := os.CreateTemp("", "umgebung-*.env")
+	if err != nil {
+		return func() tea.Msg { return errMsg{err} }
+	}
+	tmpPath := f.Name()
+	f.WriteString("# umgebung - one KEY=VALUE per line\n")
+	f.WriteString(editor.FormatLines(initial))
+	f.Close()
+
+	return tea.ExecProcess(exec.Command(editorBin, tmpPath), func(err error) tea.Msg {
+		defer os.Remove(tmpPath)
+		if err != nil {
+			return errMsg{err}
+		}
+		content, err := os.ReadFile(tmpPath)
+		if err != nil {
+			return errMsg{err}
+		}
+		pairs, err := editor.ParseLines(string(content))
+		if err != nil {
+			return errMsg{err}
+		}
+		var updatedVars []db.EnvVar
+		for _, p := range pairs {
+			enc, err := crypto.Encrypt(m.key, []byte(p.Value))
+			if err != nil {
+				return errMsg{err}
+			}
+			updatedVars = append(updatedVars, db.EnvVar{Key: p.Key, Value: enc})
+		}
+		return db.UpdateEnvSet(m.conn, name, updatedVars)
+	})
+}
+
 func (m Model) View() string {
+	if m.mode == "input" {
+		return fmt.Sprintf("New env set name: %s_\n\n(press enter to open editor, esc to cancel)", m.inputBuf)
+	}
+
 	if m.err != nil {
 		return fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err)
 	}
