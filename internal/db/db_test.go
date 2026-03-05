@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/feto/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/db"
 )
 
 func TestOpenCreatesSchema(t *testing.T) {

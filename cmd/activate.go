@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/feto/umgebung/internal/crypto"
-	"github.com/feto/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/crypto"
+	"github.com/thiemotorres/umgebung/internal/db"
 )
 
 // activateEnvSet decrypts and injects vars from the named env set, then spawns a sub-shell.

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/feto/umgebung/internal/crypto"
+	"github.com/thiemotorres/umgebung/internal/crypto"
 )
 
 func TestEncryptDecryptRoundtrip(t *testing.T) {

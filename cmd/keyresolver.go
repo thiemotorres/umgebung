@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/feto/umgebung/internal/agent"
-	"github.com/feto/umgebung/internal/crypto"
-	"github.com/feto/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/agent"
+	"github.com/thiemotorres/umgebung/internal/crypto"
+	"github.com/thiemotorres/umgebung/internal/db"
 	"golang.org/x/term"
 )
 

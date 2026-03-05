@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/feto/umgebung/internal/db"
-	"github.com/feto/umgebung/internal/tui"
 	"github.com/spf13/cobra"
+	"github.com/thiemotorres/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/tui"
 )
 
 var rootCmd = &cobra.Command{

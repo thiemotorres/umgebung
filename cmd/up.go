@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/feto/umgebung/internal/db"
 	"github.com/spf13/cobra"
+	"github.com/thiemotorres/umgebung/internal/db"
 )
 
 var upCmd = &cobra.Command{

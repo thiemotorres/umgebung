@@ -8,8 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	_ "modernc.org/sqlite"
 
-	"github.com/feto/umgebung/internal/db"
-	"github.com/feto/umgebung/internal/tui"
+	"github.com/thiemotorres/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/tui"
 )
 
 func openTestDB(t *testing.T) *sql.DB {

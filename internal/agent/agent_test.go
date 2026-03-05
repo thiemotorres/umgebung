@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/feto/umgebung/internal/agent"
+	"github.com/thiemotorres/umgebung/internal/agent"
 )
 
 func TestDaemonUnlockAndGetKey(t *testing.T) {

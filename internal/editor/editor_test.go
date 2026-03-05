@@ -3,7 +3,7 @@ package editor_test
 import (
 	"testing"
 
-	"github.com/feto/umgebung/internal/editor"
+	"github.com/thiemotorres/umgebung/internal/editor"
 )
 
 func TestParseLines(t *testing.T) {

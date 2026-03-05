@@ -4,10 +4,10 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/feto/umgebung/internal/agent"
-	"github.com/feto/umgebung/internal/crypto"
-	"github.com/feto/umgebung/internal/db"
 	"github.com/spf13/cobra"
+	"github.com/thiemotorres/umgebung/internal/agent"
+	"github.com/thiemotorres/umgebung/internal/crypto"
+	"github.com/thiemotorres/umgebung/internal/db"
 )
 
 var agentCmd = &cobra.Command{

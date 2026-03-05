@@ -1,6 +1,6 @@
 package main
 
-import "github.com/feto/umgebung/cmd"
+import "github.com/thiemotorres/umgebung/cmd"
 
 func main() {
 	cmd.Execute()

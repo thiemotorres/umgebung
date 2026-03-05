@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/feto/umgebung/internal/crypto"
-	"github.com/feto/umgebung/internal/db"
-	"github.com/feto/umgebung/internal/editor"
 	"github.com/spf13/cobra"
+	"github.com/thiemotorres/umgebung/internal/crypto"
+	"github.com/thiemotorres/umgebung/internal/db"
+	"github.com/thiemotorres/umgebung/internal/editor"
 )
 
 var editCmd = &cobra.Command{
